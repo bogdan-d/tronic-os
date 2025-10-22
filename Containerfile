@@ -10,7 +10,7 @@ COPY build_files /build_files
 FROM ${BASE_IMAGE}
 
 ARG IMAGE_NAME="${IMAGE_NAME:-tronic-os}"
-ARG IMAGE_VENDOR="${IMAGE_VENDOR:-ublue-os}"
+ARG IMAGE_VENDOR="${IMAGE_VENDOR:-bogdan-d}"
 
 ## Other possible base images include:
 # FROM ghcr.io/ublue-os/bazzite:latest

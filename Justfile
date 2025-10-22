@@ -1,4 +1,4 @@
-export repo_organization := env("GITHUB_REPOSITORY_OWNER", "ublue-os")
+export repo_organization := env("GITHUB_REPOSITORY_OWNER", "bogdan-d")
 export image_name := env("IMAGE_NAME", "tronic-os")
 export default_tag := env("DEFAULT_TAG", "latest")
 export bib_image := env("BIB_IMAGE", "quay.io/centos-bootc/bootc-image-builder:latest")
