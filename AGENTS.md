@@ -22,7 +22,7 @@ bazzite-deck-nvidia        # Deck KDE + NVIDIA
 BASE_IMAGE_NAME="kinoite"               # Desktop environment
 IMAGE_FLAVOR="nvidia"                   # Hardware variant
 KERNEL_FLAVOR="bazzite"                 # Custom kernel
-FEDORA_VERSION="41"                     # Fedora version
+FEDORA_VERSION="42"                     # Fedora version
 ```
 
 ## Build Process
