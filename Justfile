@@ -2,6 +2,9 @@ export repo_organization := env("GITHUB_REPOSITORY_OWNER", "bogdan-d")
 export image_name := env("IMAGE_NAME", "tronic-os")
 export default_tag := env("DEFAULT_TAG", "latest")
 export bib_image := env("BIB_IMAGE", "quay.io/centos-bootc/bootc-image-builder:latest")
+export source_org := env("SOURCE_ORG", "ublue-os")
+export source_image := env("SOURCE_IMAGE", "bazzite-deck")
+export source_tag := env("SOURCE_TAG", "latest")
 
 alias build-vm := build-qcow2
 alias rebuild-vm := rebuild-qcow2
@@ -74,26 +77,31 @@ sudoif command *args:
 # Arguments:
 #   $target_image - The tag you want to apply to the image (default: $image_name).
 #   $tag - The tag for the image (default: $default_tag).
+#   $base_image - The base image to build from (default: bazzite-deck).
 #
 # The script constructs the version string using the tag and the current date.
 # If the git working directory is clean, it also includes the short SHA of the current HEAD.
 #
-# just build $target_image $tag
+# just build $target_image $tag $base_image
 #
 # Example usage:
-#   just build aurora lts
+#   just build tronic-os latest bazzite-deck-nvidia
 #
-# This will build an image 'aurora:lts' with DX and GDX enabled.
+# This will build an image 'tronic-os:latest' based on bazzite-deck-nvidia.
 #
 
 # Build the image using the specified parameters
-build $target_image=image_name $tag=default_tag:
+build $target_image=image_name $tag=default_tag $base_image=source_image:
     #!/usr/bin/env bash
-    
+
     # Get Version
     ver="${tag}-$(date +%Y%m%d)"
 
+    # Construct full base image reference
+    BASE_IMAGE_REF="ghcr.io/${source_org}/${base_image}:${source_tag}"
+
     BUILD_ARGS=()
+    BUILD_ARGS+=("--build-arg" "BASE_IMAGE=${BASE_IMAGE_REF}")
     BUILD_ARGS+=("--build-arg" "IMAGE_NAME=${image_name}")
     BUILD_ARGS+=("--build-arg" "IMAGE_VENDOR=${repo_organization}")
     if [[ -z "$(git status -s)" ]]; then
