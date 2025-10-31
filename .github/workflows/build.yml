@@ -92,6 +92,11 @@ jobs:
           target-dir: /var/lib/containers
           mount-opts: compress-force=zstd:2
 
+      - name: Generate output image ref
+        id: gen_image_ref
+        run: |
+          echo "IMAGE_NAME=${BASE_IMAGE/bazzite/tronic-os}" | sed 's/-deck//' | tee -a "$GITHUB_ENV"
+
       - name: Get current date
         id: date
         run: |
@@ -139,11 +144,6 @@ jobs:
           fi
 
           echo "SOURCE_VERSION_MAJOR=$SOURCE_VERSION_MAJOR" >>$GITHUB_OUTPUT
-
-      - name: Generate output image ref
-        id: gen_image_ref
-        run: |
-          echo "IMAGE_NAME=${BASE_IMAGE/bazzite/tronic-os}" | sed 's/-deck//' | tee -a "$GITHUB_ENV"
       ## END:FROM BAZZITE-DX
 
       # Image metadata for https://artifacthub.io/ - This is optional but is highly recommended so we all can get a index of all the custom images
