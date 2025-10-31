@@ -75,11 +75,45 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
+      # QUICK CLEANUP: reclaim common caches and large SDKs before heavy pulls
+      - name: Quick runner cleanup & report
+        run: |
+          echo "Disk: before cleanup"
+          df -h /
+          echo "Containers storage (if present):"
+          sudo du -sh /var/lib/containers || true
+
+          # Remove known large SDKs/tooling that GH runners often have
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android || true
+
+          # Clean package manager caches
+          if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get -y autoremove || true
+            sudo apt-get -y clean || true
+            sudo rm -rf /var/cache/apt/archives/* || true
+          fi
+          if command -v dnf >/dev/null 2>&1; then
+            sudo dnf -y clean all || true
+            sudo rm -rf /var/cache/dnf/* || true
+          fi
+
+          # Prune Docker if present (best-effort)
+          if command -v docker >/dev/null 2>&1; then
+            sudo docker system prune -af || true
+          fi
+
+          # Small temp cleanup
+          sudo rm -rf /tmp/* /var/tmp/* || true
+
+          echo "Disk: after cleanup"
+          df -h /
+          sudo du -sh /var/lib/containers || true
+
       # This is optional, but if you see that your builds are way too big for the runners, you can enable this by uncommenting the following lines:
-      # - name: Maximize build space
-      #   uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e # v9
-      #   with:
-      #     remove-codeql: true
+      - name: Maximize build space
+        uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e # v9
+        with:
+          remove-codeql: true
 
       - name: Mount BTRFS for podman storage
         id: container-storage-action
@@ -91,11 +125,6 @@ jobs:
         with:
           target-dir: /var/lib/containers
           mount-opts: compress-force=zstd:2
-
-      - name: Generate output image ref
-        id: gen_image_ref
-        run: |
-          echo "IMAGE_NAME=${BASE_IMAGE/bazzite/tronic-os}" | sed 's/-deck//' | tee -a "$GITHUB_ENV"
 
       - name: Get current date
         id: date
@@ -144,6 +173,11 @@ jobs:
           fi
 
           echo "SOURCE_VERSION_MAJOR=$SOURCE_VERSION_MAJOR" >>$GITHUB_OUTPUT
+
+      - name: Generate output image ref
+        id: gen_image_ref
+        run: |
+          echo "IMAGE_NAME=${BASE_IMAGE/bazzite/tronic-os}" | sed 's/-deck//' | tee -a "$GITHUB_ENV"
       ## END:FROM BAZZITE-DX
 
       # Image metadata for https://artifacthub.io/ - This is optional but is highly recommended so we all can get a index of all the custom images
@@ -198,6 +232,34 @@ jobs:
             BASE_IMAGE=ghcr.io/${{ env.SOURCE_ORG }}/${{ matrix.base_image }}:${{ env.IMAGE_SOURCE_TAG || 'latest' }}
             IMAGE_NAME=${{ env.IMAGE_NAME }}
             IMAGE_VENDOR=${{ github.repository_owner }}
+
+      # Prune build caches and intermediate images (best-effort) to free disk before commit/push
+      - name: Prune build caches and intermediate images
+        if: always()
+        run: |
+          echo "Disk usage before prune:"
+          df -h /
+          sudo du -sh /var/lib/containers || true
+
+          # Try to remove stopped containers
+          if command -v podman >/dev/null 2>&1; then
+            sudo podman ps -a -q | xargs -r sudo podman rm -f || true
+            # Remove dangling images only
+            sudo podman images -a --filter dangling=true --format "{{.ID}}" | xargs -r sudo podman rmi -f || true
+            # System prune to remove build cache
+            sudo podman system prune -f || true
+          fi
+
+          if command -v buildah >/dev/null 2>&1; then
+            sudo buildah images -q --filter dangling=true | xargs -r sudo buildah rmi -f || true
+          fi
+
+          # Tidy temp directories
+          sudo rm -rf /tmp/* /var/tmp/* || true
+
+          echo "Disk usage after prune:"
+          df -h /
+          sudo du -sh /var/lib/containers || true
 
       # Rechunk is a script that we use on Universal Blue to make sure there isnt a single huge layer when your image gets published.
       # This does not make your image faster to download, just provides better resumability and fixes a few errors.
